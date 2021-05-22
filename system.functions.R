@@ -16,6 +16,14 @@
 #   tr()
 #   perp.basis()
 
+# This file is also responsible for the global constants:
+
+MM.BUDGET = 1e7
+MIN.SCALE = 1e4
+MAX.SCALE = 1e12
+MIN.HSCALE = 1
+MAX.HSCALE = 1e16
+
 ##############################################################
 
 # This function generates a random n=2 Lindblad system.
@@ -23,10 +31,11 @@
 # If the rot.switch is set to true, the system is given a random
 # SO(3) rotation
 
-rand.A <- function( rot.switch = FALSE ){
+rand.A <- function(scale = 1, s=21411, rot.switch = FALSE ){
   
+  set.seed(s)
   # a is a sorted vector whose largest element is 1. The other two are uniform on [0,1]
-  a = c(1,sort(runif(2),decreasing=TRUE))
+  a = scale*c(1,sort(runif(2),decreasing=TRUE))
   
   # To get b, we pick a uniform point in the 1/8th unit ball, and stretch accordingly
   cosphi = runif(1)
@@ -160,6 +169,7 @@ u.from.rot <- function(rot){
 
 # Helper function to matrixify vector for cross product
 cross.mat <- function(vc){
+  vc = as.matrix(vc)					
   cmt = diag(rep(0,3))
   cmt[1,2] = vc[3] 
   cmt[2,3] = vc[1] 
@@ -177,9 +187,9 @@ cross.vec <- function(cmt){
 }
 
 # This function takes a positive-definite 3x3 complex matrix, and decomposes it
-# into three parts: the sorted vector of eigenvalues of Re(A), the eigenvector
-# matrix of Re(A), and the b-vector representing the imaginary parts of the
-# off-diagonal elements. The rotation is chosen so that the components of b are 
+# into three parts: the sorted vector of eigenvalues of Re(A), the b-vector representing 
+# the imaginary parts of the off-diagonal elements, and the quarternion representation of the 
+# rotation matrix. The rotation is chosen so that the components of b are 
 # all non-negative. If b has zero components, there is a binary ambiguity in the
 # relative axis, but there's no systematic way to resolve it.
 
@@ -204,7 +214,8 @@ A.assemble <- function(Ab){
 }
 
 # Given a point in a Bloch ball for a Lindblad system, computes
-# the necessary (non-unique) Hamiltonian
+# the necessary (non-unique) Hamiltonian that kills the transverse
+# derivative (Hamiltonian can't affect the radial derivative)
 h.from.n <- function(n,a,b){
   
   # Compute Hamiltonian
@@ -387,15 +398,21 @@ tr <- function(A){
   return(sum(diag(A)))
 }
 
-# This is a function that, given a vector in R3, returns an orthonormal basis for
+# This is a function that, given a vector in R^3, returns an orthonormal basis for
 # the orthogonal space.
 
 perp.basis <- function(v){
   
-  v = v/mag(v)
-  w1 = cross.mat(t(c(1,0,0))) %*% v
-  w2 = cross.mat(t(c(0,1,0))) %*% v
-  w3 = cross.mat(t(c(0,0,1))) %*% v
-  evs = eigen(cbind(w1,w2,w3))$vectors[,1]*sqrt(2)
-  return(cbind(Re(evs), Im(evs)))
+  if(mag(v)==0){
+    print("Vector cannot be the zero vector.")
+  }
+  else{
+    v = v/mag(v)
+    w1 = cross.mat(t(c(1,0,0))) %*% v
+    w2 = cross.mat(t(c(0,1,0))) %*% v
+    w3 = cross.mat(t(c(0,0,1))) %*% v
+    evs = eigen(cbind(w1,w2,w3))$vectors[,1]*sqrt(2)
+    return(cbind(Re(evs), Im(evs)))
+    
+  }
 }
